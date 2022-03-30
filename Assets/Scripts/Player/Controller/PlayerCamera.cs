@@ -34,7 +34,9 @@ public class PlayerCamera : MonoBehaviour
         // Get mouse inputs
         xInput = Input.GetAxisRaw("Mouse X") * (xSensitivity * 10f) * Time.deltaTime;
         yInput = Input.GetAxisRaw("Mouse Y") * (ySensitivity * 10f) * Time.deltaTime;
+    }
 
+    private void LateUpdate() {
         // On the camera, y = x and x = y axis.
         yRotation += xInput;
         xRotation -= yInput;

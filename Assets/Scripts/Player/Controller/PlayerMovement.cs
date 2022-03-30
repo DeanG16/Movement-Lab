@@ -54,7 +54,6 @@ public class PlayerMovement : MonoBehaviour
         }
 
         if (grounded) {
-            Debug.Log("Set to false :(");
             isJumping = false;
         } else {
             onSlope = false;
@@ -80,7 +79,7 @@ public class PlayerMovement : MonoBehaviour
         Vector3 direction = (orientation.forward * input.y + orientation.right * input.x).normalized;
         Vector3 velocity;
         if (grounded) {
-            if (onSlope) {
+            if (onSlope && !isJumping) {
                 velocity = GetVectorOnSlope(direction) * movementSpeed * Time.fixedDeltaTime;
             } else {
                 velocity = direction * movementSpeed * Time.fixedDeltaTime;
@@ -104,13 +103,13 @@ public class PlayerMovement : MonoBehaviour
         RaycastHit hitInfo;
         Physics.Raycast(orientation.transform.position, Vector3.down * 2f, out hitInfo, groundLayer);
 
-        //Add jump, but account for normal of ground surface.
-        Vector3 jumpDirection = Vector3.up;
         if (onSlope) {
-            jumpDirection += hitInfo.normal;
+            rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         }
-        Debug.DrawRay(transform.position, jumpDirection.normalized * 2f, Color.yellow, 5f);
-        rb.AddForce(jumpDirection.normalized * jumpForce * Time.fixedDeltaTime, ForceMode.Impulse);
+
+        rb.AddForce(hitInfo.normal * jumpForce * 0.1f  * Time.fixedDeltaTime, ForceMode.Impulse);
+        rb.AddForce(Vector3.up * jumpForce * Time.fixedDeltaTime, ForceMode.Impulse);
+        Debug.DrawRay(transform.position, Vector3.up * 2f, Color.yellow, 5f);
     }
 
     void LimitSpeed() {
@@ -151,7 +150,9 @@ public class PlayerMovement : MonoBehaviour
                 if (contactAngle != 0f && contactAngle <= 45f) {
                     onSlope = true;
                     rb.useGravity = false;
-                    if (!isJumping) { rb.AddForce(-contact.normal * slopeForce * Time.fixedDeltaTime); }
+                    if (!isJumping) { 
+                        rb.AddForce(-contact.normal * slopeForce * Time.fixedDeltaTime); 
+                    }
                 } else {
                     onSlope = false;
                     rb.useGravity = true;

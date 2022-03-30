@@ -7,7 +7,7 @@ public class CameraPositioner : MonoBehaviour
     [Header("Target Transform")]
     public Transform targetPosition;
 
-    void Update() {
+    private void LateUpdate() {
         if (targetPosition == null) {
             Debug.LogError("CameraPositioner.cs: target assigned");
             return;
