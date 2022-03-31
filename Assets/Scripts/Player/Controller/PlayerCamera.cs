@@ -7,11 +7,14 @@ public class PlayerCamera : MonoBehaviour
     [Header("Player Camera")]
     public Camera playerCamera;
 
+    [Header("Target Position")]
+    public Transform targetPosition;
+
     [Header("Sensitivity Options")]
     [Range(1f, 100f)]
-    public int xSensitivity = 15;
+    public float xSensitivity = 15f;
     [Range(1f, 100f)]
-    public int ySensitivity = 15;
+    public float ySensitivity = 15f;
 
     [Header("Orientation")]
     public Transform orientation;
@@ -32,17 +35,15 @@ public class PlayerCamera : MonoBehaviour
 
     void Update() {
         // Get mouse inputs
-        xInput = Input.GetAxisRaw("Mouse X") * (xSensitivity * 10f) * Time.deltaTime;
-        yInput = Input.GetAxisRaw("Mouse Y") * (ySensitivity * 10f) * Time.deltaTime;
-    }
+        xInput = Input.GetAxis("Mouse X") * xSensitivity * 0.02f;
+        yInput = Input.GetAxis("Mouse Y") * ySensitivity * 0.02f;
 
-    private void LateUpdate() {
         // On the camera, y = x and x = y axis.
         yRotation += xInput;
         xRotation -= yInput;
-
         xRotation = Mathf.Clamp(xRotation, -90f, 90f);
         playerCamera.transform.localRotation = Quaternion.Euler(xRotation, yRotation, 0f);
         orientation.localRotation = Quaternion.Euler(0f, yRotation, 0f);
+        transform.position = targetPosition.position;
     }
 }
