@@ -5,30 +5,72 @@ using UnityEngine.UI;
 
 public class UIController : MonoBehaviour
 {
-    [Header("Rigidbody Magnitude Value")]
-    public Text rbMagValue;
+    [Header("Max Speed Value")]
+    public Text maxSpeedValue;
 
-    [Header("Slope Angle Value")]
+    [Header("Speed Value")]
+    public Text speedValue;
+
+    [Header("Angle Value")]
     public Text slopeAngleValue;
+
+    [Header("Jumping Value")]
+    public Text jumpingValue;
+
+    [Header("Slope Value")]
+    public Text slopeValue;
+
+    [Header("Grounded Value")]
+    public Text groundedValue;
+
+    [Header("Airborne Value")]
+    public Text airborneValue;
+
+    [Header("Sliding Value")]
+    public Text slidingValue;
 
     // Start is called before the first frame update
     void Start()
     {
         PlayerMovement playerMove = FindObjectOfType<PlayerMovement>();
+        StateManager stateManager = FindObjectOfType<StateManager>();
         playerMove.magnitudeChange += UpdateMagnitude;
-        playerMove.slopeAngleChange += UpdateSlopeAngle;
+        stateManager.slopeAngleChange += UpdateSlopeAngle;
+        stateManager.slidingChange += UpdateSliding;
+        stateManager.groundedChange += UpdateGrounded;
+        stateManager.slopeChange += UpdateSlope;
+        playerMove.maxSpeedChange += UpdateMaxSpeed;
     }
 
     void UpdateMagnitude(float value) {
-        rbMagValue.text = (Mathf.Floor(value * 10.0f) * 0.1f).ToString();
+        speedValue.text = (Mathf.Floor(value * 10.0f) * 0.1f).ToString();
+    }
+
+    void UpdateMaxSpeed(float value) {
+        maxSpeedValue.text = value.ToString();
     }
 
     void UpdateSlopeAngle(float value) {
-        if(value > 45f) {
+        if(value > 50f) {
             slopeAngleValue.color = Color.red;
         } else {
             slopeAngleValue.color = Color.green;
         }
         slopeAngleValue.text = (Mathf.Floor(value * 10.0f) * 0.1f).ToString();
+    }
+
+    void UpdateGrounded(bool value) {
+        groundedValue.color = !value ? Color.red : Color.green;
+        groundedValue.text = value.ToString();
+    }
+
+    void UpdateSliding(bool value) {
+        slidingValue.color = !value ? Color.red : Color.green;
+        slidingValue.text = value.ToString();
+    }
+
+    void UpdateSlope(bool value) {
+        slopeValue.color = !value ? Color.red : Color.green;
+        slopeValue.text = value.ToString();
     }
 }
