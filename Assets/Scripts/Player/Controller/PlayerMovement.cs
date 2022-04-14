@@ -2,18 +2,19 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(StateManager))]
 public class PlayerMovement : MonoBehaviour
 {
     public System.Action<float> magnitudeChange;
     public System.Action<float> maxSpeedChange;
 
+    public System.Action<bool> playerJumped;
+
     // Private Variables
     private Rigidbody rb;
     private InputManager inputManager;
     private StateManager stateManager;
-
-    public float maxSpeed = 6.5f;
 
     private Vector3 playerScale;
     private Vector3 crouchScale = new Vector3(1f, 0.65f, 1f);
@@ -26,9 +27,9 @@ public class PlayerMovement : MonoBehaviour
     [Header("Physics Settings")]
     public float airControl = 0.25f;
     public float slopeControl = 0.25f;
-    public float slopeForce = 5f;
+    public float slopeForce = 250f;
     public float maxSlopeAngle { get; private set; } = 50f;
-    public float extraGravity = 5f;
+    public float extraGravity = 2000f;
     public LayerMask groundLayer;
 
     [Header("Movement Settings")]
@@ -36,14 +37,16 @@ public class PlayerMovement : MonoBehaviour
     public float walkSpeed = 6.5f;
     public float runSpeed = 10f;
     public float crouchSpeed = 3f;
-    public float slidingSpeed = 50f;
+    public float slidingSpeed = 30f;
+    public float maxAirSpeed = 20f;
+    public float maxSpeed = 6.5f;
 
     [Header("Jump Settings")]
-    public float jumpForce;
+    public float jumpForce = 700f;
 
     private void Awake() {
-        inputManager = GetComponent<InputManager>();
-        stateManager = GetComponentInParent<StateManager>();
+        inputManager = GetComponentInParent<InputManager>();
+        stateManager = GetComponent<StateManager>();
     }
 
     // Start is called before the first frame update
@@ -56,8 +59,7 @@ public class PlayerMovement : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (stateManager.IsGrounded || stateManager.IsOnSlope) {
-            SetMovementSpeed();
+        if (stateManager.IsGrounded || stateManager.IsOnSlope || stateManager.IsSliding) {
             if (inputManager.JumpPressed) {
                 Jump();
             }
@@ -65,118 +67,137 @@ public class PlayerMovement : MonoBehaviour
     }
 
     void FixedUpdate() {
+        SetMovementSpeed();
         ApplyPhysics();
         ApplyMovement();
+    }
+
+    void SetMovementSpeed() {
+        if (stateManager.IsGrounded) {
+            if (stateManager.IsCrouching) {
+                this.maxSpeed = crouchSpeed;
+                return;
+            }
+
+            if (stateManager.IsSprinting) {
+                this.maxSpeed = this.runSpeed;
+            } else {
+                this.maxSpeed = this.walkSpeed;
+            }
+        }
+        
+        maxSpeedChange(maxSpeed);
+    }
+
+    void ApplyMovement() {
+        Vector2 calculatedInput = LimitMovementSpeed();
+    
+        Vector3 velocity;
+        Vector3 direction = orientation.forward * calculatedInput.y + orientation.right * calculatedInput.x;
+
+        if (stateManager.IsGrounded) {
+            velocity = direction * movementSpeed * Time.fixedDeltaTime;
+            if (stateManager.IsOnSlope) {
+                velocity = GetVectorOnSlope(direction) * movementSpeed * Time.fixedDeltaTime;
+            }
+        } else if (stateManager.IsSliding) {
+            velocity = GetVectorOnSlope(direction) * movementSpeed * slopeControl * Time.fixedDeltaTime;
+        } else {
+            velocity = direction * movementSpeed * airControl * Time.fixedDeltaTime;
+        }
+
+        rb.AddForce(velocity);
+
+        magnitudeChange(rb.velocity.magnitude);
+    }
+
+    public Vector2 LimitMovementSpeed() {
+        // Get angle between current orientation (Y axis) and rigidbody's velocity direction, converting to degrees.
+        // This is so we limit movement in the correct direction and not the global rotation of the player.
+        float velFromOrientationAngle = Mathf.DeltaAngle(orientation.transform.eulerAngles.y, Mathf.Atan2(rb.velocity.x, rb.velocity.z) * Mathf.Rad2Deg);
+        float magnitude = new Vector2(rb.velocity.x, rb.velocity.z).magnitude;
+
+        // Calculate X and Z magnitude, converting degrees back to radians and account for Unity's clockwise Y rotation.
+        // > X -> Sin(Theta) = Cos(90 - Angle).
+        // > Z -> Cos(Theta) = Sin(90 - Angle).
+        float xMag = magnitude * Mathf.Sin(velFromOrientationAngle * Mathf.Deg2Rad);
+        float zMag = magnitude * Mathf.Cos(velFromOrientationAngle * Mathf.Deg2Rad);
+
+        Vector2 calculatedMagnitude = new Vector2(xMag, zMag);
+
+        float xInput = inputManager.movementInput.x;
+        float zInput = inputManager.movementInput.y;
+
+        // If the rigidbody is moving past the maximum speed in a direction, cancel out the player's input in that direction.
+        if ((xInput > 0 && calculatedMagnitude.x > maxSpeed) ||
+            (xInput < 0 && calculatedMagnitude.x < 0f - maxSpeed)) {
+            xInput = 0f;
+        }
+
+        if ((zInput > 0 && calculatedMagnitude.y > maxSpeed) ||
+            (zInput < 0 && calculatedMagnitude.y < 0f - maxSpeed)) {
+            zInput = 0f;
+        }
+
+        // Calculate the hypotenuse of diagonal movement, and cancel out player input if over the max speed.
+        if (zInput != 0 && xInput != 0 && (Mathf.Sqrt(Mathf.Pow(rb.velocity.x, 2f) + Mathf.Pow(rb.velocity.z, 2f)) > maxSpeed)) {
+            zInput = 0f;
+            xInput = 0f;
+        }
+
+        return new Vector2(xInput, zInput);
     }
 
     void Jump() {
         RaycastHit hitInfo;
         Physics.Raycast(orientation.transform.position, Vector3.down * 2f, out hitInfo, groundLayer);
 
-        if (stateManager.IsOnSlope) {
+        // Reset y velocity on slope to prevent dampened jumping.
+        if (stateManager.IsOnSlope || stateManager.IsSliding) {
             rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         }
 
-        rb.AddForce(hitInfo.normal * jumpForce * 0.1f  * Time.fixedDeltaTime, ForceMode.Impulse);
+        rb.AddForce(hitInfo.normal * jumpForce * 0.1f * Time.fixedDeltaTime, ForceMode.Impulse);
         rb.AddForce(Vector3.up * jumpForce * Time.fixedDeltaTime, ForceMode.Impulse);
-        Debug.DrawRay(transform.position, Vector3.up * 2f, Color.yellow, 5f);
-    }
-
-    /*void StartCrouch() {
-        if (Mathf.Abs(Vector3.Distance(transform.localScale, crouchScale)) > 0.01f && !inputManager.CrouchPressed) {
-            transform.localScale = Vector3.Lerp(transform.localScale, crouchScale, 0.05f);
-        }
-    }
-
-    void StopCrouch() {
-        if (Mathf.Abs(Vector3.Distance(transform.localScale, playerScale)) > 0.01f && inputManager.CrouchPressed) {
-            transform.localScale = Vector3.Lerp(transform.localScale, playerScale, 0.05f);
-        }
-    }*/
-
-    void LimitSpeed() {
-        // Limiting forward and side speed to current max
-        Vector2 vel = new Vector2(rb.velocity.x, rb.velocity.z);
-        if (vel.magnitude >= maxSpeed) {
-            float yVel = rb.velocity.y;
-            Vector3 limitedSpeed = vel.normalized * maxSpeed;
-            rb.velocity = new Vector3(limitedSpeed.x, yVel, limitedSpeed.y);
-        }
-    }
-
-    void SetMovementSpeed() {
-        if ((stateManager.IsGrounded || stateManager.IsOnSlope) && !stateManager.IsSliding) {
-            if (stateManager.IsCrouching) {
-                maxSpeed = crouchSpeed;
-            } else if (stateManager.IsSprinting) {
-                maxSpeed = runSpeed;
-            } else {
-                maxSpeed = walkSpeed;
-            }
-        } else if (stateManager.IsOnSlope && stateManager.IsSliding) {
-            maxSpeed = slidingSpeed;
-        } else {
-            maxSpeed = walkSpeed;
-        }
-
-        maxSpeedChange(maxSpeed);
-    }
-
-    void ApplyMovement() {
-        Vector3 direction = (orientation.forward * inputManager.movementInput.y + orientation.right * inputManager.movementInput.x).normalized;
-        Vector3 velocity;
-        if (stateManager.IsGrounded) {
-            velocity = direction * movementSpeed * Time.fixedDeltaTime;
-        } else if (stateManager.IsOnSlope && !stateManager.IsSliding) {
-            velocity = GetVectorOnSlope(direction) * movementSpeed * Time.fixedDeltaTime;
-        } else if (stateManager.IsSliding) {
-            velocity = direction * movementSpeed * airControl * Time.fixedDeltaTime;
-        } else {
-            velocity = direction * movementSpeed * airControl * Time.fixedDeltaTime;
-        }
-
-        if (inputManager.movementInput.x != 0f || inputManager.movementInput.y != 0f) {
-            rb.AddForce(velocity);
-        }
-
-        LimitSpeed();
-        magnitudeChange(rb.velocity.magnitude);
     }
 
     void ApplyPhysics() {
         // Grounded Physics
-        if (stateManager.IsGrounded) {
+        if (stateManager.IsGrounded && !stateManager.IsOnSlope) {
             rb.drag = 5f;
             rb.useGravity = true;
+            return;
         }
 
         // Slope Physics
-        if (!stateManager.IsGrounded && stateManager.IsOnSlope && !stateManager.IsSliding) {
+        if (stateManager.IsGrounded && stateManager.IsOnSlope) {
             rb.drag = 5f;
             rb.useGravity = false;
-
             ApplySlopeForce();
+            return;
         }
-        
+
+        // Sliding Physics
+        if (stateManager.IsSliding) {
+            rb.drag = 1f;
+            rb.useGravity = true;
+            ApplySlopeForce();
+            ApplyGravity(GetSlopeDownwards());
+            return;
+        }
+
         // Airborne Physics
         if (!stateManager.IsGrounded && !stateManager.IsOnSlope && !stateManager.IsSliding) {
             rb.drag = 0f;
             rb.useGravity = true;
             ApplyGravity(Vector3.down);
-        }
-
-        // Sliding Physics
-        if (!stateManager.IsGrounded && stateManager.IsOnSlope && stateManager.IsSliding) {
-            rb.drag = 1f;
-            rb.useGravity = true;
-            ApplySlopeForce();
-            ApplyGravity(GetSlopeDownwards());
+            return;
         }
     }
 
-    void ApplyGravity(Vector3 direction, float additionalForce = 0f) {
-        Vector3 forceDirection = additionalForce != 0f ? direction * extraGravity * additionalForce : direction * extraGravity;
-        rb.AddForce(forceDirection * Time.fixedDeltaTime);
+    void ApplyGravity(Vector3 direction, float additionalForce = 0f, ForceMode mode = ForceMode.Force) {
+        Vector3 forceDirection = additionalForce != 0f ? direction * additionalForce : direction * extraGravity;
+        rb.AddForce(forceDirection * Time.fixedDeltaTime, mode);
     }
 
     void ApplySlopeForce() {

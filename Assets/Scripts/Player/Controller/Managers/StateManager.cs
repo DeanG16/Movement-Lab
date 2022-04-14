@@ -2,13 +2,14 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(PlayerMovement))]
+[RequireComponent(typeof(CapsuleCollider))]
 public class StateManager : MonoBehaviour
 {
     public System.Action<bool> groundedChange;
     public System.Action<float> slopeAngleChange;
     public System.Action<bool> slopeChange;
     public System.Action<bool> slidingChange;
+    public System.Action<bool> exitingSlideChange;
 
     PlayerMovement playerMovement;
     InputManager inputManager;
@@ -18,52 +19,84 @@ public class StateManager : MonoBehaviour
     public bool IsGrounded { get; private set; }
     public bool IsSliding { get; private set; }
     public bool IsOnSlope { get; private set; }
+    public bool IsExitingSlide { get; private set; }
+    public bool IsJumping { get; private set; }
 
-    void Awake() {
+    bool cancelGrounded;
+    int cancellationTimer;
+    float cancelDelay = 5f;
+
+    private void Awake() {
         playerMovement = GetComponent<PlayerMovement>();
         inputManager = GetComponentInParent<InputManager>();
     }
 
-    void Update() {
+    private void Update() {
         CheckIfSprinting();
     }
 
-    void OnCollisionStay(Collision collision) {
-        ContactPoint[] contactPoints = collision.contacts;
+    private void FixedUpdate() {
+        UpdateCollisionChecks();
+        PerformCollisionChecks();
+    }
 
-        for (int i = 0; i < collision.contactCount; i++) {
-            float contactNormalAngle = Mathf.Abs(Vector3.Angle(Vector3.up, contactPoints[i].normal));
-            if (contactNormalAngle >= 90f || collision.gameObject.layer != 3) { continue; }
-
-            slopeAngleChange(contactNormalAngle);
-
-            if (Mathf.Abs(contactNormalAngle) == 0f) {
+    private void PerformCollisionChecks() {
+        RaycastHit hitInfo;
+        if (Physics.SphereCast(playerMovement.orientation.position + new Vector3(0f, 2f, 0f), 0.25f, Vector3.down, out hitInfo, 2f, playerMovement.groundLayer)) {
+            if (playerMovement.groundLayer != (playerMovement.groundLayer | (1 << hitInfo.collider.gameObject.layer))) {
+                return;
+            }
+            if (IsOnGround(hitInfo.normal)) {
                 IsGrounded = true;
-                IsOnSlope = false;
-                IsSliding = false;
-            } else if (contactNormalAngle > 0f) {
-                IsGrounded = false;
-                IsOnSlope = true;
+                cancelGrounded = false;
+                cancellationTimer = 0;
 
-                if (Mathf.Abs(contactNormalAngle) > playerMovement.maxSlopeAngle) {
-                    IsSliding = true;
+                if (Vector3.Angle(Vector3.up, hitInfo.normal) > 1f) {
+                    IsOnSlope = true;
                 } else {
-                    IsSliding = false;
+                    IsOnSlope = false;
                 }
+                IsSliding = false;
+            } else if (IsOnSlide(hitInfo.normal)) {
+                IsSliding = true;
+            }
+        } else {
+            IsSliding = false;
+        }
+
+        slopeAngleChange(Vector3.Angle(Vector3.up, hitInfo.normal));
+        groundedChange(IsGrounded);
+        slopeChange(IsOnSlope);
+        slidingChange(IsSliding);
+    }
+
+    private bool IsOnGround(Vector3 normal) {
+        return Vector3.Angle(Vector3.up, normal) < playerMovement.maxSlopeAngle;
+    }
+
+    private bool IsOnSlide(Vector3 normal) {
+        float surfaceAngle = Vector3.Angle(Vector3.up, normal);
+        if (surfaceAngle > playerMovement.maxSlopeAngle) {
+            return true;
+        }
+        return false;
+    }
+
+    private void UpdateCollisionChecks() {
+        if (!cancelGrounded) {
+            cancelGrounded = true;
+        } else {
+            cancellationTimer++;
+            if ((float)cancellationTimer > cancelDelay) {
+                IsGrounded = false;
+                IsOnSlope = false;
+                groundedChange(IsGrounded);
+                slopeChange(IsOnSlope);
             }
         }
-        groundedChange(IsGrounded);
-        slidingChange(IsSliding);
-        slopeChange(IsOnSlope);
     }
 
-    void OnCollisionExit(Collision collision) {
-        if (collision.gameObject.layer == 3) {
-            SetAirborneState();
-        }
-    }
-
-    void CheckIfSprinting() {
+    private void CheckIfSprinting() {
         if (inputManager.SprintPressed && (IsGrounded || IsOnSlope)) {
             IsSprinting = true;
         } else {
@@ -71,13 +104,4 @@ public class StateManager : MonoBehaviour
         }
     }
 
-    void SetAirborneState() {
-        IsGrounded = false;
-        IsOnSlope = false;
-        IsSliding = false;
-
-        groundedChange(IsGrounded);
-        slidingChange(IsSliding);
-        slopeChange(IsOnSlope);
-    }
 }
