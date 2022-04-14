@@ -29,6 +29,9 @@ public class UIController : MonoBehaviour
     [Header("Sliding Value")]
     public Text slidingValue;
 
+    [Header("Exiting Slide Value")]
+    public Text exitingSlideValue;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -39,6 +42,7 @@ public class UIController : MonoBehaviour
         stateManager.slidingChange += UpdateSliding;
         stateManager.groundedChange += UpdateGrounded;
         stateManager.slopeChange += UpdateSlope;
+        stateManager.exitingSlideChange += UpdateExitingSlide;
         playerMove.maxSpeedChange += UpdateMaxSpeed;
     }
 
@@ -48,6 +52,11 @@ public class UIController : MonoBehaviour
 
     void UpdateMaxSpeed(float value) {
         maxSpeedValue.text = value.ToString();
+    }
+
+    void UpdateExitingSlide(bool value) {
+        exitingSlideValue.color = !value ? Color.red : Color.green;
+        exitingSlideValue.text = value.ToString();
     }
 
     void UpdateSlopeAngle(float value) {
