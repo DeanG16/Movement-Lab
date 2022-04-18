@@ -11433,14 +11433,6 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 460576742, guid: 7445fad3d7e946648b1451c8c1c470ff, type: 3}
-      propertyPath: minimumSpeed
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 460576742, guid: 7445fad3d7e946648b1451c8c1c470ff, type: 3}
-      propertyPath: wallAttachForce
-      value: 3
-      objectReference: {fileID: 0}
     - target: {fileID: 6821034000681394018, guid: 7445fad3d7e946648b1451c8c1c470ff, type: 3}
       propertyPath: m_RootOrder
       value: 1

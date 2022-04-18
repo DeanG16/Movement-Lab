@@ -103,15 +103,14 @@ public class StateManager : MonoBehaviour
     }
 
     private void OnCollisionEnter(Collision collision) {
-        Debug.DrawRay(playerMovement.orientation.position, Vector3.down * 5f, Color.red);
         RaycastHit hitInfo;
-        if (Physics.Raycast(playerMovement.orientation.transform.position, Vector3.down * 2f, out hitInfo, Mathf.Infinity, playerMovement.groundLayer) ) {
+        if (Physics.Raycast(playerMovement.orientation.position + new Vector3(0f, 0.25f, 0f), Vector3.down * 0.75f, out hitInfo, Mathf.Infinity, playerMovement.groundLayer)) {
             if (IsOnGround(hitInfo.normal) || IsOnSlide(hitInfo.normal) || IsWallRunning) {
                 IsJumping = false;
                 CanJump = true;
+                jumpingChange(IsJumping);
             }
         }
-        jumpingChange(IsJumping);
     }
 
     private bool IsOnGround(Vector3 normal) {
