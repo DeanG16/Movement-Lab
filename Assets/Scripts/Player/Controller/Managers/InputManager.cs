@@ -13,6 +13,7 @@ public class InputManager : MonoBehaviour
     public KeyCode sprintKey { get; set; } = KeyCode.LeftShift;
     public KeyCode crouchKey { get; set; } = KeyCode.LeftControl;
     public KeyCode jumpKey { get; set; } = KeyCode.Space;
+    public KeyCode slideKey { get; set; } = KeyCode.C;
     public KeyCode interactKey { get; set; } = KeyCode.E;
 
     // Mouse Controls

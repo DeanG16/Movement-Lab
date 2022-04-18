@@ -8,13 +8,15 @@ public class PlayerMovement : MonoBehaviour
 {
     public System.Action<float> magnitudeChange;
     public System.Action<float> maxSpeedChange;
-
     public System.Action<bool> playerJumped;
+
 
     // Private Variables
     private Rigidbody rb;
     private InputManager inputManager;
     private StateManager stateManager;
+    private FootstepHandler footstepHandler;
+    private float lastFootstepDistance;
 
     private Vector3 playerScale;
     private Vector3 crouchScale = new Vector3(1f, 0.65f, 1f);
@@ -25,7 +27,7 @@ public class PlayerMovement : MonoBehaviour
     public Transform orientation;
 
     [Header("Physics Settings")]
-    public float airControl = 0.25f;
+    public float airControl = 0.4f;
     public float slopeControl = 0.25f;
     public float slopeForce = 250f;
     public float maxSlopeAngle { get; private set; } = 50f;
@@ -34,19 +36,22 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Movement Settings")]
     public float movementSpeed = 3500f;
-    public float walkSpeed = 6.5f;
+    public float walkSpeed = 7.5f;
     public float runSpeed = 10f;
     public float crouchSpeed = 3f;
     public float slidingSpeed = 30f;
-    public float maxAirSpeed = 20f;
-    public float maxSpeed = 6.5f;
+    public float maxSpeed = 7.5f;
 
     [Header("Jump Settings")]
     public float jumpForce = 700f;
 
+    private float walkFootStepDelay = 24f;
+    private float runFootStepDelay = 27f;
+
     private void Awake() {
         inputManager = GetComponentInParent<InputManager>();
         stateManager = GetComponent<StateManager>();
+        footstepHandler = GetComponentInParent<FootstepHandler>();
     }
 
     // Start is called before the first frame update
@@ -57,17 +62,27 @@ public class PlayerMovement : MonoBehaviour
     }
 
     // Update is called once per frame
-    void Update()
-    {
+    void Update() {
+        FootSteps();
+
         if (stateManager.IsGrounded || stateManager.IsOnSlope || stateManager.IsSliding) {
-            if (inputManager.JumpPressed) {
+            if (inputManager.JumpPressed && stateManager.CanJump && (!stateManager.IsCrouching || stateManager.IsCrouching && stateManager.IsSliding)) {
                 Jump();
+            }
+
+            if (inputManager.CrouchPressed) {
+                Debug.Log("Crouching!");
+                StartCrouch();
+            } else {
+                StopCrouch();
             }
         }
     }
 
     void FixedUpdate() {
         SetMovementSpeed();
+        maxSpeedChange(maxSpeed);
+
         ApplyPhysics();
         ApplyMovement();
     }
@@ -75,18 +90,16 @@ public class PlayerMovement : MonoBehaviour
     void SetMovementSpeed() {
         if (stateManager.IsGrounded) {
             if (stateManager.IsCrouching) {
-                this.maxSpeed = crouchSpeed;
+                maxSpeed = crouchSpeed;
                 return;
             }
 
             if (stateManager.IsSprinting) {
-                this.maxSpeed = this.runSpeed;
+                maxSpeed = runSpeed;
             } else {
-                this.maxSpeed = this.walkSpeed;
+                maxSpeed = walkSpeed;
             }
         }
-        
-        maxSpeedChange(maxSpeed);
     }
 
     void ApplyMovement() {
@@ -157,11 +170,32 @@ public class PlayerMovement : MonoBehaviour
             rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         }
 
-        rb.AddForce(hitInfo.normal * jumpForce * 0.1f * Time.fixedDeltaTime, ForceMode.Impulse);
+        footstepHandler.PlayJumpTakeOff();
+
+        rb.AddForce(hitInfo.normal + rb.velocity.normalized * jumpForce * 0.1f * Time.fixedDeltaTime, ForceMode.Impulse);
         rb.AddForce(Vector3.up * jumpForce * Time.fixedDeltaTime, ForceMode.Impulse);
+        playerJumped(true);
+    }
+
+    void StartCrouch() {
+        if (Mathf.Abs(Vector3.Distance(transform.localScale, crouchScale)) > 0.01f) {
+            transform.localScale = Vector3.Lerp(transform.localScale, crouchScale, 0.05f);
+        }
+    }
+
+    void StopCrouch() {
+        if (Mathf.Abs(Vector3.Distance(transform.localScale, playerScale)) > 0.01f) {
+            transform.localScale = Vector3.Lerp(transform.localScale, playerScale, 0.05f);
+        }
     }
 
     void ApplyPhysics() {
+        if (stateManager.IsWallRunning) {
+            rb.drag = 5f;
+            rb.useGravity = false;
+            return;
+        }
+
         // Grounded Physics
         if (stateManager.IsGrounded && !stateManager.IsOnSlope) {
             rb.drag = 5f;
@@ -179,10 +213,11 @@ public class PlayerMovement : MonoBehaviour
 
         // Sliding Physics
         if (stateManager.IsSliding) {
-            rb.drag = 1f;
+            rb.drag = (stateManager.IsCrouching) ? 0.5f : 1f;
             rb.useGravity = true;
             ApplySlopeForce();
-            ApplyGravity(GetSlopeDownwards());
+            float additionalForce = (stateManager.IsCrouching) ? 2200f : 0;
+            ApplyGravity(GetSlopeDownwards(), additionalForce);
             return;
         }
 
@@ -221,5 +256,19 @@ public class PlayerMovement : MonoBehaviour
 
         Vector3 acrossSlope = Vector3.Cross(Vector3.ProjectOnPlane(transform.up, hitInfo.normal), hitInfo.normal);
         return Vector3.Cross(acrossSlope, hitInfo.normal);
+    }
+
+    private void FootSteps() {
+        if (!stateManager.IsCrouching && stateManager.IsGrounded) {
+            float rbMag = rb.velocity.magnitude;
+            if (rbMag > 20f) {
+                rbMag = 20f;
+            }
+            lastFootstepDistance += rbMag * Time.deltaTime * maxSpeed;
+            if (lastFootstepDistance > ((stateManager.IsSprinting) ? runFootStepDelay : walkFootStepDelay)) {
+                footstepHandler.PlayFootStep();
+                lastFootstepDistance = 0f;
+            }
+        }
     }
 }

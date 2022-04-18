@@ -8090,17 +8090,9 @@ MonoBehaviour:
   assetGuid: 
   m_Mesh: {fileID: 830271107}
   m_IsSelectable: 1
-  m_SelectedFaces: 00000000
-  m_SelectedEdges:
-  - a: 0
-    b: 1
-  - a: 2
-    b: 0
-  - a: 1
-    b: 3
-  - a: 3
-    b: 2
-  m_SelectedVertices: 00000000010000000200000003000000
+  m_SelectedFaces: 
+  m_SelectedEdges: []
+  m_SelectedVertices: 
 --- !u!4 &290256931
 Transform:
   m_ObjectHideFlags: 0
@@ -8122,6 +8114,22 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1385867043943162790, guid: 7445fad3d7e946648b1451c8c1c470ff, type: 3}
+      propertyPath: m_Volume
+      value: 0.4
+      objectReference: {fileID: 0}
+    - target: {fileID: 3961032944270952054, guid: 7445fad3d7e946648b1451c8c1c470ff, type: 3}
+      propertyPath: runningFootstepStepFx.Array.size
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 3961032944270952054, guid: 7445fad3d7e946648b1451c8c1c470ff, type: 3}
+      propertyPath: runningFootstepStepFx.Array.data[1]
+      value: 
+      objectReference: {fileID: 8300000, guid: f8e559768bed7ed4680ab0449da7ec3a, type: 3}
+    - target: {fileID: 3961032944270952054, guid: 7445fad3d7e946648b1451c8c1c470ff, type: 3}
+      propertyPath: runningFootstepStepFx.Array.data[3]
+      value: 
+      objectReference: {fileID: 8300000, guid: 8c2c6c300bd8fc441878f426377bec64, type: 3}
     - target: {fileID: 6821034000681394018, guid: 7445fad3d7e946648b1451c8c1c470ff, type: 3}
       propertyPath: m_RootOrder
       value: 1
@@ -16433,7 +16441,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: pb_Mesh18180
+  m_Name: pb_Mesh33288
   serializedVersion: 10
   m_SubMeshes:
   - serializedVersion: 2
@@ -20550,7 +20558,7 @@ BoxCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1409479602}
   m_Material: {fileID: 0}
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_Enabled: 1
   serializedVersion: 2
   m_Size: {x: 1, y: 2, z: 1}
@@ -20568,6 +20576,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   teleportLocation: {fileID: 592632082}
+  delay: 0
 --- !u!33 &1409479605
 MeshFilter:
   m_ObjectHideFlags: 10
