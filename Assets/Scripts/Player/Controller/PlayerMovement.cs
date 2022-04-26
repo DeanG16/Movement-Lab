@@ -27,8 +27,8 @@ public class PlayerMovement : MonoBehaviour
     public Transform orientation;
 
     [Header("Physics Settings")]
-    public float airControl = 0.4f;
-    public float slopeControl = 0.25f;
+    float airControl = 0.5f;
+    float slopeControl = 0.25f;
     public float slopeForce = 250f;
     public float maxSlopeAngle { get; private set; } = 50f;
     public float extraGravity = 2000f;
@@ -71,7 +71,6 @@ public class PlayerMovement : MonoBehaviour
             }
 
             if (inputManager.CrouchPressed) {
-                Debug.Log("Crouching!");
                 StartCrouch();
             } else {
                 StopCrouch();
@@ -125,18 +124,7 @@ public class PlayerMovement : MonoBehaviour
     }
 
     public Vector2 LimitMovementSpeed() {
-        // Get angle between current orientation (Y axis) and rigidbody's velocity direction, converting to degrees.
-        // This is so we limit movement in the correct direction and not the global rotation of the player.
-        float velFromOrientationAngle = Mathf.DeltaAngle(orientation.transform.eulerAngles.y, Mathf.Atan2(rb.velocity.x, rb.velocity.z) * Mathf.Rad2Deg);
-        float magnitude = new Vector2(rb.velocity.x, rb.velocity.z).magnitude;
-
-        // Calculate X and Z magnitude, converting degrees back to radians and account for Unity's clockwise Y rotation.
-        // > X -> Sin(Theta) = Cos(90 - Angle).
-        // > Z -> Cos(Theta) = Sin(90 - Angle).
-        float xMag = magnitude * Mathf.Sin(velFromOrientationAngle * Mathf.Deg2Rad);
-        float zMag = magnitude * Mathf.Cos(velFromOrientationAngle * Mathf.Deg2Rad);
-
-        Vector2 calculatedMagnitude = new Vector2(xMag, zMag);
+        Vector2 calculatedMagnitude = MovementUtils.LookDirectionVelocity(rb.velocity, orientation.rotation.eulerAngles.y);
 
         float xInput = inputManager.movementInput.x;
         float zInput = inputManager.movementInput.y;

@@ -26,6 +26,7 @@ public class StateManager : MonoBehaviour
     public bool IsJumping { get; private set; }
     public bool CanJump { get; private set; }
     public bool IsWallRunning { get; private set; }
+    public bool CanWallRun { get; private set; }
 
     bool cancelGrounded;
     int cancellationTimer;
@@ -38,20 +39,21 @@ public class StateManager : MonoBehaviour
     }
 
     private void Start() {
-        wallRunning.playerWallRunning += HandleWallRunning;
+        wallRunning.playerWallRunning += (result) => { IsWallRunning = result; };
         playerMovement.playerJumped += (result) => {
             if (IsSliding) {
                 IsExitingSlide = true;
             }
 
             IsJumping = true;
-            CanJump = false; 
+            CanJump = false;
             jumpingChange(IsJumping);
         };
 
         wallRunning.playerWallRunJumped += (result) => {
             IsJumping = true;
             CanJump = false;
+            CanWallRun = true;
             jumpingChange(IsJumping);
         };
     }
@@ -76,6 +78,7 @@ public class StateManager : MonoBehaviour
             if (IsOnGround(hitInfo.normal)) {
                 IsGrounded = true;
                 IsWallRunning = false;
+
                 cancelGrounded = false;
                 cancellationTimer = 0;
 
@@ -94,7 +97,6 @@ public class StateManager : MonoBehaviour
             IsSliding = false;
         }
 
-        jumpingChange(IsJumping);
         wallRunningChange(IsWallRunning);
         slopeAngleChange(Vector3.Angle(Vector3.up, hitInfo.normal));
         groundedChange(IsGrounded);
@@ -105,12 +107,20 @@ public class StateManager : MonoBehaviour
     private void OnCollisionEnter(Collision collision) {
         RaycastHit hitInfo;
         if (Physics.Raycast(playerMovement.orientation.position + new Vector3(0f, 0.25f, 0f), Vector3.down * 0.75f, out hitInfo, Mathf.Infinity, playerMovement.groundLayer)) {
-            if (IsOnGround(hitInfo.normal) || IsOnSlide(hitInfo.normal) || IsWallRunning) {
+            if (IsOnGround(hitInfo.normal) || IsOnSlide(hitInfo.normal)) {
                 IsJumping = false;
                 CanJump = true;
-                jumpingChange(IsJumping);
+                CanWallRun = true;
             }
+        } else if (IsWallRunning) {
+            IsJumping = false;
+            CanJump = true;
+            CanWallRun = false;
+        } else {
+            CanWallRun = true;
         }
+
+        jumpingChange(IsJumping);
     }
 
     private bool IsOnGround(Vector3 normal) {
@@ -158,16 +168,4 @@ public class StateManager : MonoBehaviour
         groundedChange(IsGrounded);
         slopeChange(IsOnSlope);
     }
-
-    private void HandleWallRunning(bool value) {
-        if (IsGrounded || IsSliding || !value) {
-            IsWallRunning = false;
-        } else {
-            IsWallRunning = true;
-            IsJumping = false;
-            CanJump = true;
-        }
-        wallRunningChange(IsWallRunning);
-    }
-
 }

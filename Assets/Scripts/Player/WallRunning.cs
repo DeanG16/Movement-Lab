@@ -23,11 +23,11 @@ public class WallRunning : MonoBehaviour
     Vector3 wallRunDirection;
 
     [Header("Wall Run Settings")]
-    public float maxWallDistance = 0.7f;
-    public float wallRunSpeed = 4000f;
-    public float wallRunGravity = 750f;
-    public float wallAttachForce = 3f;
-    public float minimumSpeed = 0f;
+    float maxWallDistance = 0.7f;
+    float wallRunSpeed = 4000f;
+    float wallRunGravity = 750f;
+    float wallAttachForce = 3f;
+    float minimumSpeed = 2f;
 
 
     private void Awake() {
@@ -52,7 +52,6 @@ public class WallRunning : MonoBehaviour
 
     void StartWallRunning() {
         ResetVerticalVelocity();
-        SetWallRunDirection();
         playerWallRunning(true);
     }
 
@@ -61,20 +60,20 @@ public class WallRunning : MonoBehaviour
     }
 
     void HandleWallRunning() {
-        float currentSpeed = new Vector2(rb.velocity.x, rb.velocity.z).magnitude;
+        float currentSpeed = Mathf.Abs(new Vector2(rb.velocity.x, rb.velocity.z).magnitude);
         // If there are no walls to run on, cancel wall running and return early.
-        if (!wallLeft && !wallRight || currentSpeed < minimumSpeed) {            
+        if (currentSpeed < minimumSpeed || (!stateManager.IsWallRunning && !stateManager.CanWallRun)) {
             StopWallRunning();
             return;
         }
 
         if (!stateManager.IsGrounded && !stateManager.IsSliding && !stateManager.IsWallRunning) {
             // Left Hand Wall Run
-            if (wallLeft && WallIsRunnable(leftWallHit)) {
+            if (wallLeft) {
                 StartWallRunning();
                 activeWallRunNormal = leftWallHit.normal;
                 // Right Hand Wall Run
-            } else if (wallRight && WallIsRunnable(rightWallHit)) {
+            } else if (wallRight) {
                 StartWallRunning();
                 activeWallRunNormal = rightWallHit.normal;
             } else {
@@ -84,8 +83,8 @@ public class WallRunning : MonoBehaviour
     }
 
     void ApplyWallRunPhysics() {
+        SetWallRunDirection();
         ApplyWallForce(activeWallRunNormal);
-        Debug.DrawRay(transform.position + new Vector3(0f, 1f, 0f), wallRunDirection * 3f, Color.yellow);
         rb.AddForce(wallRunDirection.normalized * wallRunSpeed * Time.fixedDeltaTime);
         rb.AddForce(Vector3.down * wallRunGravity * Time.fixedDeltaTime);
     }
@@ -109,10 +108,10 @@ public class WallRunning : MonoBehaviour
 
         ResetVerticalVelocity();
 
-        float jumpModifier = boost ? 0.9f : 0.7f;
+        float jumpModifier = boost ? 0.5f : 0.2f;
         // Apply Forces
         rb.AddForce(normal * playerMovement.jumpForce * jumpModifier * Time.fixedDeltaTime, ForceMode.Impulse);
-        rb.AddForce(Vector3.up * playerMovement.jumpForce * 1.1f * Time.fixedDeltaTime, ForceMode.Impulse);
+        rb.AddForce(Vector3.up * playerMovement.jumpForce * Time.fixedDeltaTime, ForceMode.Impulse);
     }
 
     // Utility Functions
@@ -123,8 +122,6 @@ public class WallRunning : MonoBehaviour
         if (Physics.Raycast(origin, direction * 2f, out hitInfo) ) {
             Vector3 acrossSlope = Vector3.Cross(Vector3.ProjectOnPlane(-playerMovement.orientation.forward, hitInfo.normal), hitInfo.normal);
             wallRunDirection = Vector3.Cross(acrossSlope, hitInfo.normal);
-        } else {
-            wallRunDirection = Vector3.zero;
         }
     }
 
@@ -141,8 +138,12 @@ public class WallRunning : MonoBehaviour
     void CheckForWalls() {
         Vector3 origin = transform.position + new Vector3(0f, 1f, 0f);
 
-        wallLeft = Physics.SphereCast(origin, 0.1f, -playerMovement.orientation.right, out leftWallHit, maxWallDistance);
-        wallRight = Physics.SphereCast(origin, 0.1f, playerMovement.orientation.right, out rightWallHit, maxWallDistance);
+        wallLeft = Physics.SphereCast(origin, 0.1f, -playerMovement.orientation.right, out leftWallHit, maxWallDistance) && WallIsRunnable(leftWallHit);
+        wallRight = Physics.SphereCast(origin, 0.1f, playerMovement.orientation.right, out rightWallHit, maxWallDistance) && WallIsRunnable(rightWallHit);
+
+        if(!wallLeft && !wallRight) {
+            StopWallRunning();
+        }
     }
 
     bool WallIsRunnable(RaycastHit hitInfo) {

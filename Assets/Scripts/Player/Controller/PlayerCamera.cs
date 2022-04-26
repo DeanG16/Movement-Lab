@@ -8,6 +8,8 @@ public class PlayerCamera : MonoBehaviour
 
     [Header("Player Camera")]
     public Camera playerCamera;
+    [Header("Container Transform")]
+    public Transform containerTransform;
     [Header("Target Position")]
     public Transform targetPosition;
     [Header("Orientation")]
@@ -32,6 +34,6 @@ public class PlayerCamera : MonoBehaviour
         xRotation = Mathf.Clamp(xRotation, -90f, 90f);
         playerCamera.transform.localRotation = Quaternion.Euler(xRotation, yRotation, 0f);
         orientation.localRotation = Quaternion.Euler(0f, yRotation, 0f);
-        transform.position = targetPosition.position;
+        containerTransform.position = targetPosition.position;
     }
 }
