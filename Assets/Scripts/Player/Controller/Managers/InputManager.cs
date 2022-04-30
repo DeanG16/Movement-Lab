@@ -4,23 +4,28 @@ using UnityEngine;
 
 public class InputManager : MonoBehaviour
 {
+    public System.Action<bool> pausedGame;
+
     public bool SprintPressed { get; private set; }
     public bool CrouchPressed { get; private set; }
     public bool JumpPressed { get; private set; }
     public Vector2 movementInput { get; private set; }
 
-    // Keyboard Controls
+    #region Keyboard Controls
     public KeyCode sprintKey { get; set; } = KeyCode.LeftShift;
     public KeyCode crouchKey { get; set; } = KeyCode.LeftControl;
     public KeyCode jumpKey { get; set; } = KeyCode.Space;
     public KeyCode slideKey { get; set; } = KeyCode.C;
     public KeyCode interactKey { get; set; } = KeyCode.E;
+    #endregion
 
-    // Mouse Controls
+    #region Mouse Controls
     public float mouseXSensitivity { get; private set; } = 50f;
     public float mouseYSensitivity { get; private set; } = 50f;
     public float mouseXInput { get; private set; }
     public float mouseYInput { get; private set; }
+    #endregion
+
 
 
     void Update()
@@ -35,6 +40,9 @@ public class InputManager : MonoBehaviour
     }
 
     void GetKeyboardInput() {
+        if (Input.GetKeyDown(KeyCode.Escape)) {
+            pausedGame(true);
+        }
         movementInput = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
         IsSprinting();
         IsJumping();

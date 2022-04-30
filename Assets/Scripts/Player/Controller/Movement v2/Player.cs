@@ -21,7 +21,6 @@ public class Player : MonoBehaviour
     private void Awake() {
         Setup();
     }
-
     #region Required Component Configuration
     private void Setup() {
         stateHandler = GetComponent<StateHandler>();

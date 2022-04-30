@@ -4,7 +4,6 @@ using UnityEngine;
 
 public class StateHandler : MonoBehaviour
 {
-    public LayerMask groundLayer;
     #region Required Components
     private Movement movement;
     private Rigidbody rb;
@@ -16,6 +15,8 @@ public class StateHandler : MonoBehaviour
     public bool IsSliding { get; private set; }
     public bool IsOnSlope { get; private set; }
     public bool IsCrouching { get; private set; }
+
+    public bool CrouchStateChanging { get; private set; }
     #endregion
 
     #region Physics States
@@ -30,6 +31,7 @@ public class StateHandler : MonoBehaviour
         movement.playerJump += (value) => { SetJumping(value); };
         movement.playerSprint += (value) => { SetSprinting(value); };
         movement.playerCrouch += (value) => { SetCrouching(value); };
+        movement.playerCrouchChange += (value) => { SetCrouchingChange(value); };
         movement.playerGrounded += (value) => { SetGrounded(value); };
         movement.playerSlope += (value) => { SetSlope(value); };
         movement.playerSlide += (value) => { SetSlide(value); };
@@ -63,6 +65,10 @@ public class StateHandler : MonoBehaviour
 
     private void SetCrouching(bool value) {
         IsCrouching = value;
+    }
+
+    private void SetCrouchingChange(bool value) {
+        CrouchStateChanging = value;
     }
 
     private void SetGrounded(bool value) {
