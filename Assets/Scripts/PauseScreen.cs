@@ -17,9 +17,8 @@ public class PauseScreen : MonoBehaviour
 
     public Text sensitivityLabel;
 
-    private void Awake() {
+    private void Start() {
         inputManager = GetComponentInParent<InputManager>();
-
         inputManager.pausedGame += HandlePause;
     }
 
@@ -39,12 +38,12 @@ public class PauseScreen : MonoBehaviour
     }
 
     public void UpdateSensitivity() {
+        if(!pauseMenu.activeSelf) { return; }
         mouseSensitivityChange(sensitivitySlider.value);
         sensitivityLabel.text = inputManager.mouseXSensitivity.ToString();
     }
 
     public void QuitGame() {
-        Debug.Log("HERE!");
         Application.Quit();
     }
 }

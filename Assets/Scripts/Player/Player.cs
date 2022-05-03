@@ -3,10 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(InputManager))]
-[RequireComponent(typeof(Movement))]
 [RequireComponent(typeof(StateHandler))]
-[RequireComponent(typeof(Rigidbody))]
-[RequireComponent(typeof(CapsuleCollider))]
 [RequireComponent(typeof(PlayerCamera))]
 public class Player : MonoBehaviour
 {
@@ -24,16 +21,16 @@ public class Player : MonoBehaviour
     #region Required Component Configuration
     private void Setup() {
         stateHandler = GetComponent<StateHandler>();
-        movement = GetComponent<Movement>();
+        movement = GetComponentInChildren<Movement>();
         
-        rb = GetComponent<Rigidbody>();
+        rb = GetComponentInChildren<Rigidbody>();
         rb.mass = 1f;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
         rb.freezeRotation = true;
         rb.useGravity = true;
 
-        capsuleCollider = GetComponent<CapsuleCollider>();
+        capsuleCollider = GetComponentInChildren<CapsuleCollider>();
         capsuleCollider.height = 2f;
         capsuleCollider.radius = 0.3f;
     }

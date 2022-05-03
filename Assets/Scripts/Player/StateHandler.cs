@@ -12,10 +12,10 @@ public class StateHandler : MonoBehaviour
     #region Movement States
     public bool IsSprinting { get; private set; }
     public bool IsJumping { get; private set; }
+    public bool CanJump { get; private set; }
     public bool IsSliding { get; private set; }
     public bool IsOnSlope { get; private set; }
     public bool IsCrouching { get; private set; }
-
     public bool CrouchStateChanging { get; private set; }
     #endregion
 
@@ -24,11 +24,12 @@ public class StateHandler : MonoBehaviour
     #endregion
 
     private void Awake() {
-        movement = GetComponent<Movement>();
-        rb = GetComponent<Rigidbody>();
+        movement = GetComponentInChildren<Movement>();
+        rb = GetComponentInChildren<Rigidbody>();
 
         // Movement Events
         movement.playerJump += (value) => { SetJumping(value); };
+        movement.playerCanJump += (value) => { SetCanJump(value); };
         movement.playerSprint += (value) => { SetSprinting(value); };
         movement.playerCrouch += (value) => { SetCrouching(value); };
         movement.playerCrouchChange += (value) => { SetCrouchingChange(value); };
@@ -57,6 +58,10 @@ public class StateHandler : MonoBehaviour
     #region State Setters
     private void SetJumping(bool value) {
         IsJumping = value;
+    }
+
+    private void SetCanJump(bool value) {
+        CanJump = value;
     }
 
     private void SetSprinting(bool value) {

@@ -6,7 +6,6 @@ using UnityEngine.UI;
 public class UIDebugging : MonoBehaviour
 {
     private StateHandler stateHandler;
-    private Movement movement;
 
     #region Physics
     public Text grounded;
@@ -20,13 +19,8 @@ public class UIDebugging : MonoBehaviour
     public Text jumping;
     #endregion
 
-    #region Systems
-    public Text counterMovement;
-    #endregion
-
     private void Awake() {
         stateHandler = GetComponentInParent<StateHandler>();
-        movement = GetComponentInParent<Movement>();
     }
 
     void Update()
@@ -38,6 +32,5 @@ public class UIDebugging : MonoBehaviour
         sprinting.color = stateHandler.IsSprinting ? Color.green : Color.red;
         crouching.color = stateHandler.IsCrouching ? Color.green : Color.red;
         jumping.color = stateHandler.IsJumping ? Color.green : Color.red;
-        counterMovement.color = movement.IsCounteringMovement ? Color.green : Color.red;
     }
 }

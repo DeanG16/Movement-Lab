@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(CapsuleCollider))]
 public class Movement : MonoBehaviour
 {
     #region Public Variables
@@ -10,6 +12,7 @@ public class Movement : MonoBehaviour
 
     #region Events
     public System.Action<bool> playerJump;
+    public System.Action<bool> playerCanJump;
     public System.Action<bool> playerSprint;
     public System.Action<bool> playerCrouch;
     public System.Action<bool> playerCrouchChange;
@@ -20,14 +23,13 @@ public class Movement : MonoBehaviour
 
     #region Required Components
     private Rigidbody rb;
-    private Player player;
     private StateHandler stateHandler;
     private InputManager inputManager;
     private AudioSource audioSource;
     #endregion
 
     #region Control Modifier Variables
-    private float airControl = 0.5f;
+    private float airControl = 0.4f;
     private float slideControl = 0.25f;
     #endregion
 
@@ -39,7 +41,7 @@ public class Movement : MonoBehaviour
     private float walkingMovementSpeed = 7.5f;
     private float sprintingMovementSpeed = 11f;
     private float crouchingMovementSpeed = 3f;
-    private float jumpForce = 700f;
+    private float jumpForce = 750f;
     #endregion
 
     #region Presets
@@ -66,12 +68,12 @@ public class Movement : MonoBehaviour
     #endregion
 
     #region Debugging
-    public bool IsCounteringMovement = true;
     private bool isPaused = false;
     #endregion
 
     private void Awake() {
         Setup();
+        //playerCanJump(true);
         audioSource.clip = footStepFx[0];
     }
 
@@ -85,28 +87,29 @@ public class Movement : MonoBehaviour
     private void FixedUpdate() {
         PerformCollisionChecks();
         HandleGravity();
-        if (IsCounteringMovement) {
-            PerformCounterMovement();
-        }
+        PerformCounterMovement();
+
         if (!isPaused) {
             HandleMovement();
         }
     }
 
     private void HandleInputs() {
+        if (inputManager.CrouchPressed) {
+            if (stateHandler.IsGrounded || stateHandler.IsSliding) {
+                maximumMovementSpeed = crouchingMovementSpeed;
+            }
+            Crouch();
+        } else if (!inputManager.CrouchPressed && stateHandler.IsCrouching && CanUncrouch()) {
+            UnCrouch();
+        }
+
         // Grounded or Sliding states
         if (stateHandler.IsGrounded || stateHandler.IsSliding) {
 
             // Either state.
-            if (inputManager.JumpPressed && !stateHandler.IsCrouching) {
+            if (inputManager.JumpPressed && stateHandler.CanJump && CanUncrouch()) {
                 Jump();
-            }
-
-            if (inputManager.CrouchPressed && !stateHandler.IsJumping) {
-                maximumMovementSpeed = crouchingMovementSpeed;
-                Crouch();
-            } else if (!inputManager.CrouchPressed && stateHandler.IsCrouching && CanUncrouch()) {
-                UnCrouch();
             }
 
             // Ground only.
@@ -125,18 +128,6 @@ public class Movement : MonoBehaviour
 
             // Slide only.
             if (stateHandler.IsSliding) {}
-        } else {
-            if (stateHandler.IsCrouching) {
-                UnCrouch();
-            }
-        }
-
-        //Debugging stuff, to be removed
-        if (Input.GetKeyDown(KeyCode.M)) {
-            IsCounteringMovement = !IsCounteringMovement;
-            if (!IsCounteringMovement) {
-                rb.isKinematic = false;
-            }
         }
     }
 
@@ -192,6 +183,8 @@ public class Movement : MonoBehaviour
     #region Action Functions
     private void Jump() {
         playerJump(true);
+        playerCanJump(false);
+
         PlayJumpTakeOff();
         rb.isKinematic = false;
 
@@ -202,13 +195,15 @@ public class Movement : MonoBehaviour
         if (stateHandler.IsOnSlope || stateHandler.IsSliding) {
             rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         }
-
-        rb.AddForce(Vector3.up * jumpForce * Time.fixedDeltaTime, ForceMode.Impulse);
+        float force = stateHandler.IsCrouching ? jumpForce * 0.8f : jumpForce;
+        rb.AddForce(Vector3.up * force * Time.fixedDeltaTime, ForceMode.Impulse);
     }
 
     private void Crouch() {
         playerCrouch(true);
-        movementForce = crouchingMovementForce;
+        if (stateHandler.IsGrounded) {
+            movementForce = crouchingMovementForce;
+        }
 
         // Cancel sprinting
         if (stateHandler.IsSprinting) {
@@ -216,7 +211,9 @@ public class Movement : MonoBehaviour
         }
 
         if (Mathf.Abs(Vector3.Distance(transform.localScale, crouchBodyScale)) > 0.01f) {
-            rb.AddForce(Vector3.down * 10f);
+            if (stateHandler.IsGrounded || stateHandler.IsSliding) {
+                rb.AddForce(Vector3.down * 10f);
+            }
             playerCrouchChange(true);
             transform.localScale = Vector3.Lerp(transform.localScale, crouchBodyScale, Time.deltaTime / 0.04f);
         } else {
@@ -226,6 +223,7 @@ public class Movement : MonoBehaviour
 
     private void UnCrouch() {
         movementForce = baseMovementForce;
+
         if (Mathf.Abs(Vector3.Distance(transform.localScale, playerBodyScale)) > 0.01f) {
             playerCrouchChange(true);
             transform.localScale = Vector3.Lerp(transform.localScale, playerBodyScale, Time.deltaTime / 0.04f);
@@ -288,12 +286,15 @@ public class Movement : MonoBehaviour
     #region Vector Functions
     Vector3 GetVectorOnSlope(Vector3 vector) {
         RaycastHit hitInfo;
-        Physics.Raycast(orientationTransform.transform.position, Vector3.down, out hitInfo, 1f, groundLayer);
-        return Vector3.ProjectOnPlane(vector, hitInfo.normal);
+        if (Physics.Raycast(orientationTransform.transform.position, Vector3.down, out hitInfo, 1f, groundLayer)) {
+            return Vector3.ProjectOnPlane(vector.normalized, hitInfo.normal);
+        } else {
+            return vector;
+        }
     }
 
     Vector3 CalculateMovementVector(Vector2 inputs) {
-        Vector3 movementDirection = orientationTransform.forward * inputs.y + orientationTransform.right * inputs.x;
+        Vector3 movementDirection = (orientationTransform.forward.normalized * inputs.y + orientationTransform.right.normalized * inputs.x);
 
         if (stateHandler.IsGrounded) {
             if (stateHandler.IsOnSlope) {
@@ -322,9 +323,8 @@ public class Movement : MonoBehaviour
 
     #region Required Component Configuration
     private void Setup() {
-        stateHandler = GetComponent<StateHandler>();
-        inputManager = GetComponent<InputManager>();
-        player = GetComponent<Player>();
+        stateHandler = GetComponentInParent<StateHandler>();
+        inputManager = GetComponentInParent<InputManager>();
         rb = GetComponent<Rigidbody>();
         audioSource = GetComponentInChildren<AudioSource>();
         playerBodyScale = transform.localScale;
@@ -344,7 +344,7 @@ public class Movement : MonoBehaviour
 
             if (IsNormalFloor(hitInfo.normal)) {
                 playerGrounded(true);
-                playerSlide(false);
+                playerSlide(false);              
 
                 if (Vector3.Angle(Vector3.up, hitInfo.normal) > 1f) {
                     playerSlope(true);
@@ -367,8 +367,14 @@ public class Movement : MonoBehaviour
         }
 
         for (int i = 0; i < collision.contactCount; i++) {
-            if (IsNormalFloor(collision.contacts[i].normal) && stateHandler.IsJumping || 
-                Vector3.Angle(Vector3.up, collision.contacts[i].normal) > maximumSlopeAngle && stateHandler.IsJumping) {
+                // Floor/Slope
+            if (IsNormalFloor(collision.contacts[i].normal)) {
+                playerCanJump(true);
+                playerJump(false);
+            }
+
+            // Sliding
+            if (Vector3.Angle(Vector3.up, collision.contacts[i].normal) > maximumSlopeAngle) {
                 playerJump(false);
             }
         }
