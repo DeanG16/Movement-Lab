@@ -31,6 +31,12 @@ public class Movement : MonoBehaviour
     #region Control Modifier Variables
     private float airControl = 0.4f;
     private float slideControl = 0.25f;
+    [SerializeField]
+    [Tooltip("Multiplier for movement in the opposite direction the player is currently moving in.")]
+    private float counterMovementMultiplier = 0.17f;
+    [SerializeField]
+    [Tooltip("The minimimum magnitude the player must reach before counter movement takes hold.")]
+    private float counterMovementThreshold = 0.2f;
     #endregion
 
     #region Speed/Force Variables
@@ -73,7 +79,6 @@ public class Movement : MonoBehaviour
 
     private void Awake() {
         Setup();
-        //playerCanJump(true);
         audioSource.clip = footStepFx[0];
     }
 
@@ -131,7 +136,7 @@ public class Movement : MonoBehaviour
         }
     }
 
-    #region Sound Functions
+    #region Audio Functions
     private void HandleFootsteps() {
         distanceTravelled += Vector3.Distance(transform.position, lastPosition);
         lastPosition = transform.position;
@@ -270,14 +275,15 @@ public class Movement : MonoBehaviour
         }
 
         if (inputManager.movementInput.x == 0f) {
-            if (Mathf.Abs(magnitude.x) > 0.01f && Mathf.Abs(magnitude.x) < 0.05f) {
-                rb.AddForce(movementForce * orientationTransform.right * 0.02f * (0f - magnitude.x) * 0.14f * Time.fixedDeltaTime);
+            Debug.Log(Mathf.Abs(magnitude.x));
+            if (Mathf.Abs(magnitude.x) > 0.01f && Mathf.Abs(magnitude.x) < 10f) {
+                rb.AddForce(movementForce * orientationTransform.right.normalized * 0.02f * (0f - magnitude.x) * counterMovementMultiplier * Time.fixedDeltaTime);
             }
         }
 
         if (inputManager.movementInput.y == 0f) {
-            if (Mathf.Abs(magnitude.y) > 0.01f && Mathf.Abs(magnitude.y) < 0.05f) {
-                rb.AddForce(movementForce * orientationTransform.right * 0.02f * (0f - magnitude.y) * 0.14f * Time.fixedDeltaTime);
+            if (Mathf.Abs(magnitude.y) > 0.01f && Mathf.Abs(magnitude.y) < 10f) {
+                rb.AddForce(movementForce * orientationTransform.forward.normalized * 0.02f * (0f - magnitude.y) * counterMovementMultiplier * Time.fixedDeltaTime);
             }
         }
     }
